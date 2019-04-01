@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from transmission_tui.tms_app import TransmissionApp
+
+TransmissionApp().start()
