@@ -4,6 +4,7 @@ import curses
 import logging
 import time
 
+from .colors import Colors
 from .daemon import TransmissionDaemon
 from .logging_config import config_logging
 from .transfer_list import TransferList
@@ -46,16 +47,16 @@ class TransmissionApp():
 
             elif char == ord('k'):
                 logging.debug('Selection up')
+                transfer_list.select_previous()
 
             elif char == ord('j'):
                 logging.debug('Selection down')
+                transfer_list.select_next()
 
             time.sleep(.25)
 
     def _init_curses(self):
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_WHITE)
-
+        Colors.init_color_pairs()
         curses.curs_set(0)
         self._stdscr.clear()
         self._stdscr.refresh()

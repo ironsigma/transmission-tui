@@ -4,6 +4,8 @@ import curses
 import logging
 import math
 
+from .colors import Colors
+
 SECONDS_PER_DAY = 60 * 60 * 24
 SECONDS_PER_HOUR = 60 * 60
 SECONDS_PER_MINUTE = 60
@@ -15,18 +17,72 @@ class TransferList:
     def __init__(self, stdscr):
         """Initialize the component."""
         self._stdscr = stdscr
+        self._count = 0
+        self._selected = None
+        self._transfers = []
+
         self._stdscr.erase()
         self._stdscr.addstr(1, 2, 'Waiting for connection to daemon')
+
+    def select_previous(self):
+        """Select the previous item on the list."""
+        if self._count == 0:
+            return
+
+        if self._selected is None:
+            self._selected = self._transfers[-1]['id']
+            self.on_updated(self._transfers)
+            return
+
+        found = False
+        for item in reversed(self._transfers):
+            if found:
+                self._selected = item['id']
+                break
+
+            if self._selected == item['id']:
+                found = True
+        else:
+            self._selected = None
+
+        self.on_updated(self._transfers)
+
+    def select_next(self):
+        """Select the next item on the list."""
+        if self._count == 0:
+            return
+
+        if self._selected is None:
+            self._selected = self._transfers[0]['id']
+            self.on_updated(self._transfers)
+            return
+
+        found = False
+        for item in self._transfers:
+            if found:
+                self._selected = item['id']
+                break
+
+            if self._selected == item['id']:
+                found = True
+        else:
+            self._selected = None
+
+        self.on_updated(self._transfers)
 
     def on_updated(self, transfers):
         """Receive transmission daemon updates."""
         self._stdscr.erase()
 
         (_height, width) = self._stdscr.getmaxyx()
+        self._count = len(transfers)
+        self._transfers = transfers
+
         if transfers:
             for (index, item) in enumerate(transfers):
                 self._progress_bar(0, index * 4, width, item)
         else:
+            self._selected = None
             self._stdscr.addstr(1, 2, 'No active transfers')
 
         self._stdscr.refresh()
@@ -57,17 +113,26 @@ class TransferList:
 
         logging.debug('ETA %s to %s', item['eta'], eta)
 
-        self._stdscr.addstr(y, x, f'  Done      Have  ETA                 Up        Down  Ratio  Status       Name')
+        self._stdscr.addstr(
+            y, x,
+            '  Done      Have  ETA                 '
+            'Up        Down  Ratio  Status       Name', curses.A_BOLD)
+
         self._stdscr.addstr(
             y + 1, x,
             f'{percent:>6} {have:>9}  {eta:<10} {item["upload speed"]:>11} '
-            f'{item["download speed"]:>11} {item["ratio"]:>6}  {item["state"]:<11}  {item["name"][0:72]:<30}')
+            f'{item["download speed"]:>11} {item["ratio"]:>6}  {item["state"]:<11}  '
+            f'{item["name"][0:72]:<30}')
 
         if fill:
-            self._stdscr.addstr(y + 2, x, " " * fill, curses.color_pair(2))
+            self._stdscr.addstr(y + 2, x, " " * fill, Colors.color(Colors.PROGRESS_FILLED))
 
         if fill < width:
-            self._stdscr.addstr(y + 2, x + fill, " " * (width - fill), curses.color_pair(1))
+            self._stdscr.addstr(y + 2, x + fill, " " * (width - fill), Colors.color(Colors.PROGRESS_EMPTY))
+
+        if self._selected == item['id']:
+            self._stdscr.chgat(y, x, width, Colors.color(Colors.ITEM_SELECTED_HEADER) | curses.A_BOLD)
+            self._stdscr.chgat(y + 1, x, width, Colors.color(Colors.ITEM_SELECTED))
 
 
 def _abbr_eta(time):
